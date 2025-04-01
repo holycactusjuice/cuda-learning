@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include <time.h>
+
 // error checking macro
 #define cudaCheckErrors(msg) \
     do { \
@@ -29,7 +31,7 @@ __global__ void mmul(float *A, float *B, float *C, int n) {
     if (idx >= n || idy >= n) return;
 
     // Accumulating value which will be stored in C[idy][idx] at the end
-    int temp = 0;
+    float temp = 0.0f;
 
     for (int i = 0; i < N/BLOCK_SIZE; i++) {
         // Load global memory into shared memory
@@ -51,6 +53,10 @@ __global__ void mmul(float *A, float *B, float *C, int n) {
 }
 
 int main() {
+    clock_t t0, t1, t2;
+
+    t0 = clock();
+
     float *A, *B, *C, *d_A, *d_B, *d_C;
     A = new float[N*N];
     B = new float[N*N];
@@ -62,6 +68,10 @@ int main() {
         C[i] = 0;
     }
 
+    t1 = clock();
+    double tInit = ((double)(t1 - t0)) / CLOCKS_PER_SEC;
+    printf("Init took %f seconds. Begin compute\n", tInit);
+
     int size = N*N*sizeof(float);
 
     cudaMalloc((void **) &d_A, size);
@@ -70,8 +80,8 @@ int main() {
     cudaCheckErrors("cudaMalloc error");
 
     cudaMemcpy(d_A, A, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_B, A, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_C, A, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, B, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_C, C, size, cudaMemcpyHostToDevice);
     cudaCheckErrors("cudaMemcpy H2D error");
 
     dim3 block(BLOCK_SIZE, BLOCK_SIZE);
@@ -83,13 +93,16 @@ int main() {
     cudaMemcpy(C, d_C, size, cudaMemcpyDeviceToHost);
     cudaCheckErrors("cudaMemcpy D2H error");
 
+    t2= clock();
+    double tCompute = ((double)(t2 - t1)) / CLOCKS_PER_SEC;
+    printf("Compute took %f seconds\n", tCompute);
 
     for (int i = 0; i < N*N; i++) {
         if (C[i] != A_val * B_val * N) {
-            printf("Mismatch at %d; expected: %f, got: %f", i, A_val * B_val * N, C[i]);
+            printf("Mismatch at %d; expected: %f, got: %f\n", i, A_val * B_val * N, C[i]);
         }
     }
 
-    printf("Done!");
+    printf("Done!\n");
     return 0;
 }

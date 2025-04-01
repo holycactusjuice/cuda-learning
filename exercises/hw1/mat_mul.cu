@@ -13,9 +13,9 @@
         }                                                           \
     } while (0)
 
-const int DSIZE = 4096;
-const int block_size = 16;
-const float A_val = 1.0f;
+const int DSIZE = 8192;
+const int block_size = 32;
+const float A_val = 3.0f;
 const float B_val = 2.0f;
 
 __global__ void matmul(const float *A, const float *B, float *C, int ds) {
@@ -36,6 +36,9 @@ __global__ void matmul(const float *A, const float *B, float *C, int ds) {
 }
 
 int main() {
+    clock_t t0, t1, t2;
+    t0 = clock();
+
     float *h_A, *h_B, *h_C, *d_A, *d_B, *d_C;
 
     h_A = new float[DSIZE * DSIZE];
@@ -47,6 +50,10 @@ int main() {
         h_B[i] = B_val;
         h_C[i] = 0;
     }
+
+    t1 = clock();
+    double tInit = ((double)(t1 - t0)) / CLOCKS_PER_SEC;
+    printf("Init took %f seconds. Begin compute\n", tInit);
 
     int size = DSIZE * DSIZE * sizeof(float);
 
@@ -77,6 +84,11 @@ int main() {
     cudaMemcpy(h_C, d_C, size, cudaMemcpyDeviceToHost);
 
     cudaCheckErrors("cudaMemcpy D2H error");
+
+    t2= clock();
+    double tCompute = ((double)(t2 - t1)) / CLOCKS_PER_SEC;
+    printf("Compute took %f seconds\n", tCompute);
+
 
     for (int i = 0; i < DSIZE * DSIZE; i++) {
         if (h_C[i] != A_val * B_val * DSIZE) {
